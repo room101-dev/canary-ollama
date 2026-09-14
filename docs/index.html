@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>canary-ollama — Audit your Ollama models for poisoning</title>
+  <style>
+    :root { --bg: #0d1117; --fg: #c9d1d9; --accent: #58a6ff; --red: #f85149; --green: #3fb950; --border: #30363d; --card: #161b22; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: var(--bg); color: var(--fg); line-height: 1.6; }
+    .container { max-width: 800px; margin: 0 auto; padding: 2rem 1.5rem; }
+    h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+    h1 span { color: var(--accent); }
+    .tagline { font-size: 1.1rem; color: #8b949e; margin-bottom: 2rem; }
+    .badges { margin-bottom: 2rem; }
+    .badges img { height: 20px; margin-right: 6px; }
+    .section { margin-bottom: 2.5rem; }
+    h2 { font-size: 1.3rem; margin-bottom: 0.75rem; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 1.25rem; margin-bottom: 1rem; }
+    code { background: #1c2128; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; color: var(--green); }
+    pre { background: #1c2128; border: 1px solid var(--border); border-radius: 6px; padding: 1rem; overflow-x: auto; font-size: 0.85em; line-height: 1.5; margin-top: 0.5rem; }
+    pre code { background: none; padding: 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
+    th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--accent); font-weight: 600; }
+    .stat { display: inline-block; margin-right: 2rem; margin-bottom: 0.5rem; }
+    .stat-num { font-size: 2rem; font-weight: 700; color: var(--accent); }
+    .stat-label { font-size: 0.85rem; color: #8b949e; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .cta { display: inline-block; background: var(--accent); color: var(--bg); padding: 0.6rem 1.5rem; border-radius: 6px; font-weight: 600; margin-top: 0.5rem; }
+    .cta:hover { text-decoration: none; opacity: 0.9; }
+    .warn { color: #d29922; }
+    ul { padding-left: 1.5rem; }
+    li { margin-bottom: 0.3rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1><span>canary</span>-ollama</h1>
+    <p class="tagline">Audit your Ollama models for poisoning — chat templates, tokenizer seams, metadata.</p>
+
+    <div class="badges">
+      <img src="https://img.shields.io/badge/License-MIT-green" alt="License: MIT">
+      <img src="https://img.shields.io/badge/Shell-Bash-orange" alt="Shell">
+      <img src="https://img.shields.io/badge/Platform-Linux-lightgrey" alt="Platform">
+    </div>
+
+    <div class="section">
+      <h2>Why this exists</h2>
+      <p>Ollama models ship from the open internet and get loaded into a process with full access to your machine. Model poisoning is peer-reviewed, real, and growing.</p>
+      <div style="margin-top: 1rem;">
+        <div class="stat"><div class="stat-num">192,032</div><div class="stat-label">HF repos scanned</div></div>
+        <div class="stat"><div class="stat-num">28</div><div class="stat-label">malicious models found</div></div>
+        <div class="stat"><div class="stat-num">0</div><div class="stat-label">false positives</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Quick start</h2>
+      <pre><code>git clone git@github.com:room101-dev/canary-ollama.git
+cd canary-ollama
+./check-ollama.sh                  # list all local models
+./check-ollama.sh some/model:tag   # scan one model</code></pre>
+      <p style="margin-top: 0.5rem;">Requires: bash 4+, <a href="https://jqlang.github.io/jq/">jq</a>, <a href="https://github.com/paraxaQQ/canary">c4nary</a> (<code>pip install c4nary</code>).</p>
+    </div>
+
+    <div class="section">
+      <h2>What it checks</h2>
+      <table>
+        <tr><th>Surface</th><th>What it checks</th><th>Rule family</th></tr>
+        <tr><td>Chat template</td><td>SSTI paths, covert instruction injection, concealment codepoints</td><td><code>TPL0xx</code></td></tr>
+        <tr><td>Tokenizer seams</td><td>Reachable role/turn special surfaces, odd vocab entries</td><td><code>TOK0xx</code></td></tr>
+        <tr><td>Metadata</td><td>Architecture / basename / finetune strings</td><td><code>MET0xx</code></td></tr>
+        <tr><td>Determinism</td><td>Stable template_sha256 across model families</td><td>—</td></tr>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>Behavior</h2>
+      <table>
+        <tr><th>Command</th><th>Result</th></tr>
+        <tr><td><code>check-ollama.sh</code></td><td>List all models (name, sha256, size, mtime)</td></tr>
+        <tr><td><code>check-ollama.sh qwen3.8:27b</code></td><td>Scan that model</td></tr>
+        <tr><td><code>check-ollama.sh sha256-5084e21b...</code></td><td>Scan by blob digest</td></tr>
+        <tr><td><code>check-ollama.sh -h</code></td><td>Usage</td></tr>
+      </table>
+      <p style="margin-top: 0.5rem;">Default scan args: <code>--fail-on warn --deep-tokenizer</code>. Exit 2 on any finding.</p>
+    </div>
+
+    <div class="section">
+      <h2>Model location</h2>
+      <p>Auto-detects (first match wins):</p>
+      <ul>
+        <li><code>$OLLAMA_MODELS</code> if set</li>
+        <li><code>$HOME/.ollama/models</code> (default user install)</li>
+        <li><code>/usr/share/ollama/.ollama/models</code> (system install)</li>
+        <li><code>/var/lib/ollama/.ollama/models</code> (system install)</li>
+        <li><code>/mnt/ai-models/Ollama/models</code></li>
+      </ul>
+    </div>
+
+    <div class="section">
+      <h2>Research-backed</h2>
+      <div class="card">
+        <ul>
+          <li><strong>Mind the Gap</strong> (ICML 2025) — first attack on the GGUF format itself</li>
+          <li><strong>Weight Poisoning</strong> (ACL 2020) — pre-trained model backdoors that survive fine-tuning</li>
+          <li><strong>NIST TrojAI</strong> — government benchmark for trojan detection</li>
+          <li><strong>MNTD</strong> (IEEE S&P 2021) — meta-classifier trojan detection at 97% AUC</li>
+          <li><strong>ToxScreen</strong> (2026) — ~800 backdoored LLMs across 4 attack objectives</li>
+        </ul>
+        <p style="margin-top: 0.5rem;"><a href="https://github.com/room101-dev/canary-ollama/blob/main/docs/LITERATURE.md">Full annotated bibliography with DOIs →</a></p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Honest scope</h2>
+      <div class="card">
+        <p><span class="warn">⚠</span> This audits GGUF <strong>metadata / chat template / tokenizer</strong>, not billions of tensor weights. Tensor-level backdoors need white-box weight inspection. Treat this as the first, cheap layer of defense-in-depth.</p>
+      </div>
+    </div>
+
+    <div class="section" style="text-align: center; padding: 2rem 0;">
+      <a href="https://github.com/room101-dev/canary-ollama" class="cta">View on GitHub</a>
+    </div>
+
+    <div class="section" style="text-align: center; color: #484f58; font-size: 0.85rem;">
+      <p>MIT License · Wraps <a href="https://github.com/paraxaQQ/canary">c4nary</a></p>
+    </div>
+  </div>
+</body>
+</html>

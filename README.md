@@ -1,10 +1,11 @@
-# canary — check your Ollama models for poisoning
+# canary-ollama
 
-Why audit Ollama GGUF models? Because model poisoning is peer-reviewed, real, and
-growing. This document organizes the key papers by threat class, with DOIs/arXiv
-IDs so you can verify every claim.
+> Audit your Ollama models for poisoning — chat templates, tokenizer seams, metadata.
 
-
+![License: MIT](https://img.shields.io/badge/License-MIT-green)
+![Shell](https://img.shields.io/badge/Shell-Bash-orange)
+![Platform](https://img.shields.io/badge/Platform-Linux-lightgrey)
+![GitHub release](https://img.shields.io/github/v/release/room101-dev/canary-ollama)
 
 Ollama models ship from the open internet (`ollama pull`, Hugging Face, hand-made
 GGUFs) and get loaded into a process with full access to your machine. Model
@@ -143,6 +144,4 @@ summary: scanned=1 canary_errors=0 blobs_missing=0
 
 ## License
 
-MIT — see [LICENSE](LICENSE).# canary-ollama
-# canary-ollama
-# canary-ollama
+MIT — see [LICENSE](LICENSE).
