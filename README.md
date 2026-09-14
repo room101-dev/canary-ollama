@@ -4,6 +4,7 @@
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-green)
 ![Shell](https://img.shields.io/badge/Shell-Bash-orange)
+![Python](https://img.shields.io/badge/Python-3.10+-blue)
 ![Platform](https://img.shields.io/badge/Platform-Linux-lightgrey)
 ![GitHub release](https://img.shields.io/github/v/release/room101-dev/canary-ollama)
 
@@ -97,6 +98,188 @@ git clone git@github.com:room101-dev/canary.git
 cd canary
 ./check-ollama.sh                  # list models
 ./check-ollama.sh some/model:tag   # scan one
+```
+
+## Python API
+
+`canary_ollama` is a Python package that wraps c4nary with a clean API, CLI, and
+optional HTTP server. Install with:
+
+```sh
+pip install .                    # core (list + scan)
+pip install ".[server]"          # + FastAPI server
+pip install ".[watch]"           # + watchdog filesystem watcher
+pip install ".[all]"             # everything
+```
+
+### Library usage
+
+```python
+from canary_ollama import list_models, scan_model, scan_all
+
+# List all local models
+models = list_models()
+for m in models:
+    print(f"{m.name}  {m.short_digest}  {m.size_human}")
+
+# Scan a single model
+result = scan_model("qwen3.8:27b")
+print(f"rc={result.rc}  findings={len(result.findings)}")
+for f in result.findings:
+    print(f"  [{f.severity}] {f.rule}: {f.message}")
+
+# Scan everything
+results = scan_all()
+clean = sum(1 for r in results if r.clean)
+print(f"{clean}/{len(results)} clean")
+```
+
+### Scan options
+
+```python
+result = scan_model(
+    "qwen3.8:27b",
+    fail_on="warn",          # "info" | "warn" | "fail"
+    deep_tokenizer=True,     # materialize full vocab for TOK checks
+    bundle=True,             # audit config, tokenizer.json, card, auto_map Python
+    sarif=False,             # SARIF 2.1.0 output
+    policy=None,             # custom policy file
+    baseline=None,           # baseline comparison
+)
+```
+
+### Model objects
+
+```python
+from canary_ollama import get_model
+
+m = get_model("qwen3.8:27b")
+print(m.name)             # "qwen3.8:27b"
+print(m.digest)           # "sha256-f5f1dd89..."
+print(m.blob_path)        # Path("/home/user/.ollama/models/blobs/sha256-...")
+print(m.size_human)       # "17G"
+print(m.template_sha256)  # "a1b2c3d4..." (for drift detection)
+```
+
+## CLI
+
+```sh
+python -m canary_ollama [COMMAND] [ARGS]
+
+Commands:
+  list                          List all local models (default)
+  scan NAME                     Scan a model for poisoning
+  scan-all                      Scan all local models
+  diff MODEL_A MODEL_B          Diff two models
+  manifest                      Generate baseline manifest
+  serve [--host HOST] [--port PORT]   Start API server
+  watch [--interval SECONDS]          Watch for new models
+```
+
+### Examples
+
+```sh
+# List models (human-readable table)
+canary-ollama list
+
+# List models (JSON)
+canary-ollama list --json
+
+# Scan a model
+canary-ollama scan qwen3.8:27b
+
+# Scan with JSON output
+canary-ollama scan qwen3.8:27b --json
+
+# Scan all models
+canary-ollama scan-all
+
+# Diff two models
+canary-ollama diff qwen3.8:27b deepseek-r1:70b
+
+# Start API server
+canary-ollama serve --port 8420
+
+# Watch for new models (poll every 60s)
+canary-ollama watch --interval 60
+```
+
+## API Server
+
+Start the server:
+
+```sh
+canary-ollama serve --host 0.0.0.0 --port 8420
+```
+
+### Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/health` | Health check (canary installed, models dir found) |
+| `GET` | `/models` | List all local models |
+| `GET` | `/models/{name}` | Get single model details |
+| `POST` | `/scan` | Scan a model (body: `{name, fail_on, deep_tokenizer, bundle}`) |
+| `GET` | `/scan/{name}` | Scan a model via GET |
+| `POST` | `/scan/all` | Scan all models |
+| `GET` | `/diff?a=MODEL_A&b=MODEL_B` | Diff two models |
+
+### curl examples
+
+```sh
+# Health check
+curl http://localhost:8420/health
+
+# List models
+curl http://localhost:8420/models | jq .
+
+# Scan a model
+curl -X POST http://localhost:8420/scan \
+  -H 'Content-Type: application/json' \
+  -d '{"name": "qwen3.8:27b", "deep_tokenizer": true, "bundle": true}' | jq .
+
+# Scan all
+curl -X POST http://localhost:8420/scan/all \
+  -H 'Content-Type: application/json' \
+  -d '{"fail_on": "warn"}' | jq .
+```
+
+## Ollama Integration
+
+### Auto-scan on model pull (watch mode)
+
+```sh
+# Poll for new models every 5 minutes
+canary-ollama watch --interval 300
+
+# Or use watchdog for real-time filesystem events (requires canary-ollama[watch])
+canary-ollama watch
+```
+
+The watcher detects new/changed models and auto-scans them. Results are printed
+to stdout, or passed to a custom callback if using the library API:
+
+```python
+from canary_ollama.hooks import watch
+
+def on_result(result):
+    if result.has_failures:
+        send_alert(result.model.name, result.findings)
+
+watch(callback=on_result)
+```
+
+### CI/CD integration
+
+Use JSON output for machine parsing:
+
+```sh
+# GitHub Actions
+canary-ollama scan-all --json --fail-on warn
+# Exit code 2 if any findings → CI fails
+
+# Pre-commit hook
+canary-ollama scan "$MODEL" --json --fail-on fail
 ```
 
 ## Model location
