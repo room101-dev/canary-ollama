@@ -1,5 +1,11 @@
 # canary — check your Ollama models for poisoning
 
+Why audit Ollama GGUF models? Because model poisoning is peer-reviewed, real, and
+growing. This document organizes the key papers by threat class, with DOIs/arXiv
+IDs so you can verify every claim.
+
+
+
 Ollama models ship from the open internet (`ollama pull`, Hugging Face, hand-made
 GGUFs) and get loaded into a process with full access to your machine. Model
 poisoning is not theoretical — peer-reviewed work demonstrates both _hidden
