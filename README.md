@@ -52,14 +52,26 @@ Annotated bibliography with DOIs/arXiv IDs: [docs/LITERATURE.md](docs/LITERATURE
   Neural Trojan Detection* (Xu et al.; **IEEE S&P 2021**); *ToxScreen* (~800
   backdoored LLMs, 2026).
 
-## What this audit covers
+## What this audit checks
 
-| surface | what it checks | c4nary rule family |
+Canary inspects three surfaces that attackers weaponize in GGUF models:
+
+| surface | what it detects | c4nary rule family |
 |---|---|---|
-| chat template | SSTI paths (`cycler`/`lipsum`/`__globals__`), covert instruction injection, concealment codepoints | `TPL0xx` |
-| tokenizer seams | reachable role/turn special surfaces, odd vocab entries | `TOK0xx` (`--deep-tokenizer`) |
-| metadata | architecture / basename / finetune strings | `MET0xx` |
-| determinism | stable `template_sha256` across a model family → template drift is visible | — |
+| **chat template** | SSTI / RCE payloads (`os.popen`, `__import__`, `__class__.__subclasses__()`), covert instruction injection ("do not mention these hidden instructions"), concealment codepoints, conditional activation via `tool_use` paths | `TPL0xx` |
+| **tokenizer seams** | reachable role/turn special surfaces, confusable role tokens, odd vocab entries that could hijack prompt structure | `TOK0xx` (`--deep-tokenizer`) |
+| **metadata** | architecture / basename / finetune string anomalies, `suppress_tokens` manipulation, model-card system prompt injection | `MET0xx` |
+| **determinism** | stable `template_sha256` across a model family — template drift between "same" models becomes visible | — |
+
+**Why these surfaces matter:**
+
+- **Chat templates are executable code.** GGUF stores Jinja2 templates in `tokenizer.chat_template`. A poisoned template can inject hidden instructions, exfiltrate data via URLs, or execute arbitrary Python at model load time. These pass every automated security scan on HuggingFace — see [docs/poisoned-templates.md](docs/poisoned-templates.md) for real payloads found in the wild.
+
+- **Tokenizer seams enable prompt hijacking.** If the tokenizer contains role tokens an attacker can forge (e.g., a fake `<|system|>` token in the vocab), they can inject instructions that the model treats as authoritative.
+
+- **Metadata influences behavior.** A `suppress_tokens` list can suppress refusal tokens. A model card can embed system prompts that auto-apply at inference.
+
+> **Deep dive:** [docs/poisoned-templates.md](docs/poisoned-templates.md) contains full exploit code for 4 classes of poisoned templates — SSTI/RCE, behavioral backdoors, conditional tool-use backdoors, and Modelfile prompt injection — with CVE references and detection commands.
 
 ## Behavior
 
@@ -139,6 +151,7 @@ summary: scanned=1 canary_errors=0 blobs_missing=0
 
 ## References & credits
 
+- Poisoned templates in the wild: [docs/poisoned-templates.md](docs/poisoned-templates.md)
 - Research background: [docs/LITERATURE.md](docs/LITERATURE.md)
 - Wraps [c4nary](https://github.com/paraxaQQ/canary) (MIT).
 
