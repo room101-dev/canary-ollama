@@ -38,15 +38,17 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
-if [[ -z "$MODELS_DIR" && -n "${OLLAMA_MODELS:-}" ]]; then
-  MODELS_DIR="$OLLAMA_MODELS"
-fi
 if [[ -z "$MODELS_DIR" ]]; then
-  for d in "$HOME/.ollama/models" /mnt/ai-models/Ollama/models; do
-    if [[ -d "$d/manifests/registry.ollama.ai" ]]; then MODELS_DIR="$d"; break; fi
+  for d in \
+    "${OLLAMA_MODELS:-}" \
+    "$HOME/.ollama/models" \
+    /usr/share/ollama/.ollama/models \
+    /var/lib/ollama/.ollama/models \
+    /mnt/ai-models/Ollama/models; do
+    [[ -n "$d" && -d "$d/manifests/registry.ollama.ai" ]] && { MODELS_DIR="$d"; break; }
   done
+  MODELS_DIR="${MODELS_DIR:-$HOME/.ollama/models}"
 fi
-MODELS_DIR="${MODELS_DIR:-$HOME/.ollama/models}"
 MANIFESTS="$MODELS_DIR/manifests/registry.ollama.ai"
 BLOBS="$MODELS_DIR/blobs"
 

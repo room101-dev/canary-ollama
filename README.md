@@ -88,11 +88,13 @@ cd canary
 
 ## Model location
 
-Resolved in order:
+Resolved in order (first match wins):
 
 1. `$OLLAMA_MODELS` if set
-2. `$HOME/.ollama/models`
-3. `/mnt/ai-models/Ollama/models`
+2. `$HOME/.ollama/models` (default user install)
+3. `/usr/share/ollama/.ollama/models` (system install)
+4. `/var/lib/ollama/.ollama/models` (system install)
+5. `/mnt/ai-models/Ollama/models`
 
 ## Exit codes
 
